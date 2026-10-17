@@ -10,7 +10,7 @@ void getWeekEvents()
   for (SportEvent sEvt : nflEvents)
   {
     sEvt.eventName = "";
-    sEvt.ref = "";
+    sEvt.drivesRef = "";
     sEvt.week = -1;
   }
 

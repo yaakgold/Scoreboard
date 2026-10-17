@@ -99,8 +99,15 @@ void setup(void) {
 
   setupWifi();
 
-  getWeekEvents();
-  showGameOptionsScreen();
+  nflSetup();
+
+  for(SportEvent evt : nflEvents)
+  {
+    Serial.println(evt.eventName);
+  }
+
+  //getWeekEvents();
+  //showGameOptionsScreen();
 }
 
 // LOOP - RUNS REPEATEDLY AFTER SETUP --------------------------------------

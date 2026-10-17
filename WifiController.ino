@@ -24,9 +24,6 @@ JsonDocument getData(String path, int substring)
 
   int statusCode = client.responseStatusCode();
   String response = client.responseBody();
-  // Serial.print(statusCode);
-  // Serial.print("--> " + path + ": ");
-  // Serial.println(response);
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, response, DeserializationOption::NestingLimit(15));
