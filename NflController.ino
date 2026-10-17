@@ -1,31 +1,19 @@
 const int SL = 31; // Substring location
 
-void getWeekEvents()
+void nflSetup()
 {
   JsonDocument root = getData("/v2/sports/football/leagues/nfl", 0);
   JsonDocument currentSeason = getData(root["season"]["$ref"], SL);
   JsonDocument currentWeek = getData(currentSeason["type"]["week"]["$ref"], SL);
-  if (nflEvents[0].week == currentWeek["number"]) return; // Don't do anything if it is still the same week
-
-  for (SportEvent sEvt : nflEvents)
-  {
-    sEvt.eventName = "";
-    sEvt.drivesRef = "";
-    sEvt.week = -1;
-  }
-
   JsonDocument currentEvents = getData(currentWeek["events"]["$ref"], SL);
   
-  JsonArray events = currentEvents["items"];
-
-  int index = 0;
-  for (JsonVariant comp : events)
+  JsonDocument chosenEvent, competition, homeTeamComp, awayTeamComp, homeTeam, awayTeam;
+  int loopIndex = 0;
+  for(JsonVariant comp : currentEvents["items"].as<JsonArray>())
   {
-    JsonDocument event = getData(comp["$ref"], SL);
-    JsonDocument competition = getData(event["competitions"][0]["$ref"], SL);
-    
-    JsonDocument homeTeamComp;
-    JsonDocument awayTeamComp;
+    chosenEvent = getData(comp["$ref"], SL);
+    competition = getData(chosenEvent["competitions"][0]["$ref"], SL);
+
     JsonArray competitors = competition["competitors"];
     for (JsonVariant competitor : competitors)
     {
@@ -42,20 +30,18 @@ void getWeekEvents()
       }
     }
 
-    SportEvent evt;
-    String shortName = event["shortName"];
-    evt.eventName = shortName;
+    homeTeam = getData(homeTeamComp["team"]["$ref"], SL);
+    awayTeam = getData(awayTeamComp["team"]["$ref"], SL);
 
-    String ref = competition["drives"]["$ref"];
-    evt.drivesRef = ref;
+    SportEvent nflEvent;
+    nflEvent.eventName = awayTeam["abbreviation"].as<String>() + " @ " + homeTeam["abbreviation"].as<String>();
+    nflEvent.drivesRef = competition["drives"]["$ref"].as<String>();
+    nflEvent.awayTeam = awayTeam;
+    nflEvent.homeTeam = homeTeam;
+    nflEvent.week = currentWeek["number"];
 
-    evt.week = currentWeek["number"];
-
-    evt.homeTeam = getData(homeTeamComp["team"]["$ref"], SL);;
-    evt.awayTeam = getData(awayTeamComp["team"]["$ref"], SL);;
-
-    nflEvents[index] = evt;
-    index++;
+    nflEvents[loopIndex] = nflEvent;
+    loopIndex++;
   }
 }
 
@@ -96,7 +82,6 @@ void displayGame()
 
   matrix.show();
 
-  // TODO: Make this look at the current game
   displayNFLScore();
 
   matrix.show();
@@ -104,6 +89,64 @@ void displayGame()
 
 void displayNFLScore()
 {
+  JsonArray currentDrives = getData(nflEvents[currentNflEventIndex].drivesRef, SL).as<JsonArray>();
+  size_t currentDrivesSize = currentDrives.size();
+  JsonDocument currentDrive = currentDrives[currentDrivesSize - 1];
+  
+  size_t driveListSize = driveList.size();
+  if (driveListSize == 0 
+    || driveList[driveListSize - 1]["id"].as<String>() != currentDrives[currentDrivesSize - 1]["id"].as<String>())
+  {
+    //This means a new drive is starting!
+
+    //Update the drive list to have the current drive
+    //TODO: Figure out why I am did it this way instead of just adding the drive to the end of the list in the original code
+    driveList.clear();
+    for(JsonDocument d : currentDrives)
+    {
+      driveList.add(d);
+    }
+
+    //Reset plays for the new drive
+    plays.clear();
+  }
+
+  JsonArray currentPlays = getData(currentDrive["$ref"], SL)["plays"]["items"].as<JsonArray>();
+
+  if (currentPlays.size() == plays.size()) return; //No new plays have happened yet;
+
+  bool playIdExists = false;
+  for (JsonVariant play : currentPlays)
+  {
+    for (JsonVariant existingPlay : plays)
+    {
+      if (existingPlay["id"].as<String>() == play["id"].as<String>())
+      {
+        playIdExists = true;
+        break;
+      }
+    }
+
+    if (!playIdExists)
+    {
+      plays.add(play["id"].as<String>());
+
+      if (!(play["type"]["text"].as<String>() == "Kickoff"
+          || play["type"]["text"].as<String>() == "Official Timeout"
+          || play["type"]["text"].as<String>() == "Pass Incompletion"
+          || play["type"]["text"].as<String>() == "Timeout"
+          || play["type"]["text"].as<String>() == "End Period"
+          || play["type"]["text"].as<String>() == "Two-minute warning"
+          || play["type"]["text"].as<String>() == "End of Half"
+          || play["type"]["text"].as<String>() == "End of Game"))
+      {
+        displayPlay(play);
+      }
+    }
+
+    playIdExists = false;
+  }
+
   displaySituation();
   displayAwayScore();
   displayHomeScore();
@@ -135,6 +178,18 @@ void displayHomeScore()
   matrix.setTextColor(YELLOW);
   matrix.print("---");
   matrix.drawRect(62, 10, 2, 12, MAGENTA);
+}
+
+void displayPlay(JsonDocument play)
+{
+  Serial.print(play["type"]["text"].as<String>());
+  Serial.print(" from ");
+  Serial.print(play["start"]["yardline"].as<String>());
+  Serial.print(" to ");
+  Serial.print(" on ");
+  Serial.print(play["start"]["down"].as<String>());
+  Serial.print("&");
+  Serial.print(play["start"]["distance"].as<String>());
 }
 
 void displaySituation()

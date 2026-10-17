@@ -82,6 +82,8 @@ void (*updateScoreFunc)();
 
 SportEvent nflEvents[20];
 int currentNflEventIndex = 0;
+JsonArray driveList;
+JsonArray plays;
 
 void setup(void) {
   Serial.begin(9600);
@@ -101,13 +103,7 @@ void setup(void) {
 
   nflSetup();
 
-  for(SportEvent evt : nflEvents)
-  {
-    Serial.println(evt.eventName);
-  }
-
-  //getWeekEvents();
-  //showGameOptionsScreen();
+  showGameOptionsScreen();
 }
 
 // LOOP - RUNS REPEATEDLY AFTER SETUP --------------------------------------
